@@ -123,6 +123,23 @@ def discipline_from_category(category_name: str) -> str:
     return category_name.split()[0] if category_name else ""
 
 
+# Barvy disciplín (border + nadpis + legenda). Bez fialove AI palety.
+DISCIPLINE_COLORS: Dict[str, dict[str, str]] = {
+    "KARATE AGILITY": {"accent": "#ef6c00", "bg": "#fff3e0", "label": "KARATE AGILITY"},
+    "KIHON IDO": {"accent": "#558b2f", "bg": "#f1f8e9", "label": "KIHON IDO"},
+    "KUMITE BALLOON": {"accent": "#00838f", "bg": "#e0f7fa", "label": "KUMITE BALLOON"},
+    "KATA BEGINNER": {"accent": "#0277bd", "bg": "#e1f5fe", "label": "KATA BEGINNER"},
+    "KUMITE BEGINNER": {"accent": "#ad1457", "bg": "#fce4ec", "label": "KUMITE BEGINNER"},
+}
+
+
+def discipline_color(disciplina: str) -> dict[str, str]:
+    """Vrati barvy discipliny; fallback pro nezname."""
+    if disciplina in DISCIPLINE_COLORS:
+        return DISCIPLINE_COLORS[disciplina]
+    return {"accent": "#546e7a", "bg": "#eceff1", "label": disciplina}
+
+
 def rounds_from_csv_row(row: dict, round_columns: List[str]) -> str:
     parts = []
     for column in round_columns:
@@ -210,18 +227,21 @@ FILTER_SCRIPT = """
   const storageKey = "nominace-mcr-filters";
   const filterData = window.PRESENTATION_FILTER_DATA;
   const clubSelect = document.getElementById("filter-club");
-  const mainSelect = document.getElementById("filter-main");
   const detailSelect = document.getElementById("filter-detail");
   const resetButton = document.getElementById("filter-reset");
   const onlyClubCheckbox = document.getElementById("filter-only-club");
   const onlyPostupCheckbox = document.getElementById("filter-only-postup");
   const onlyRemizaCheckbox = document.getElementById("filter-only-remiza");
   const statusEl = document.getElementById("filter-status");
+  const swatchButtons = Array.from(
+    document.querySelectorAll(".swatch-discipline[data-discipline]")
+  );
+  let selectedDisciplines = [];
 
   function saveFilters() {
     localStorage.setItem(storageKey, JSON.stringify({
       club: clubSelect.value,
-      main: mainSelect.value,
+      disciplines: selectedDisciplines,
       detail: detailSelect.value,
       onlyClub: onlyClubCheckbox.checked,
       onlyPostup: onlyPostupCheckbox.checked,
@@ -237,8 +257,46 @@ FILTER_SCRIPT = """
     }
   }
 
+  function selectedDisciplineSet() {
+    return new Set(selectedDisciplines);
+  }
+
+  function categoriesForSelected() {
+    if (!selectedDisciplines.length) return filterData.allCategories;
+    const categories = [];
+    selectedDisciplines.forEach((discipline) => {
+      (filterData.categoriesByDiscipline[discipline] || []).forEach((category) => {
+        categories.push(category);
+      });
+    });
+    return categories;
+  }
+
+  function syncSwatchUi() {
+    const active = selectedDisciplineSet();
+    const hasSelection = active.size > 0;
+    swatchButtons.forEach((button) => {
+      const discipline = button.dataset.discipline || "";
+      const isActive = active.has(discipline);
+      button.classList.toggle("is-active", isActive);
+      button.classList.toggle("is-muted", hasSelection && !isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  function toggleDiscipline(discipline) {
+    if (selectedDisciplines.includes(discipline)) {
+      selectedDisciplines = selectedDisciplines.filter((item) => item !== discipline);
+    } else {
+      selectedDisciplines = selectedDisciplines.concat([discipline]);
+    }
+    detailSelect.value = "";
+    syncSwatchUi();
+    populateDetailOptions();
+    applyFilters();
+  }
+
   function populateDetailOptions() {
-    const main = mainSelect.value;
     const previous = detailSelect.value;
     detailSelect.innerHTML = "";
     const allOption = document.createElement("option");
@@ -246,10 +304,7 @@ FILTER_SCRIPT = """
     allOption.textContent = "Vše";
     detailSelect.appendChild(allOption);
 
-    const categories = main
-      ? (filterData.categoriesByDiscipline[main] || [])
-      : filterData.allCategories;
-
+    const categories = categoriesForSelected();
     for (const category of categories) {
       const option = document.createElement("option");
       option.value = category;
@@ -289,7 +344,7 @@ FILTER_SCRIPT = """
 
   function applyFilters() {
     const club = clubSelect.value;
-    const main = mainSelect.value;
+    const active = selectedDisciplineSet();
     const detail = detailSelect.value;
     const onlyClub = onlyClubCheckbox.checked && club;
     const onlyPostup = onlyPostupCheckbox.checked;
@@ -299,7 +354,7 @@ FILTER_SCRIPT = """
     let highlightedRows = 0;
 
     document.querySelectorAll(".category").forEach((section) => {
-      const matchMain = !main || section.dataset.discipline === main;
+      const matchMain = !active.size || active.has(section.dataset.discipline);
       const matchDetail = !detail || section.dataset.category === detail;
       const matchClub = categoryHasClub(section, club);
       let categoryVisible = matchMain && matchDetail && matchClub;
@@ -347,6 +402,9 @@ FILTER_SCRIPT = """
     });
 
     const parts = [visibleCategories + " kategorií", visibleRows + " řádků"];
+    if (selectedDisciplines.length) {
+      parts.push("disciplíny: " + selectedDisciplines.join(", "));
+    }
     if (club) parts.push(highlightedRows + " z vybraného klubu");
     if (onlyClub) parts.push("jen vybraný klub");
     if (onlyPostup) parts.push("jen postupy");
@@ -363,12 +421,13 @@ FILTER_SCRIPT = """
 
   function resetFilters() {
     clubSelect.value = "";
-    mainSelect.value = "";
+    selectedDisciplines = [];
     detailSelect.value = "";
     onlyClubCheckbox.checked = false;
     onlyPostupCheckbox.checked = false;
     onlyRemizaCheckbox.checked = false;
     updateOnlyClubState();
+    syncSwatchUi();
     populateDetailOptions();
     applyFilters();
   }
@@ -380,16 +439,22 @@ FILTER_SCRIPT = """
     clubSelect.appendChild(option);
   });
 
-  filterData.disciplines.forEach((discipline) => {
-    const option = document.createElement("option");
-    option.value = discipline;
-    option.textContent = discipline;
-    mainSelect.appendChild(option);
+  swatchButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      toggleDiscipline(button.dataset.discipline || "");
+    });
   });
 
   const saved = loadFilters();
   if (saved.club && filterData.clubs.includes(saved.club)) clubSelect.value = saved.club;
-  if (saved.main && filterData.disciplines.includes(saved.main)) mainSelect.value = saved.main;
+  if (Array.isArray(saved.disciplines)) {
+    selectedDisciplines = saved.disciplines.filter((discipline) =>
+      filterData.disciplines.includes(discipline)
+    );
+  } else if (saved.main && filterData.disciplines.includes(saved.main)) {
+    selectedDisciplines = [saved.main];
+  }
+  syncSwatchUi();
   populateDetailOptions();
   if (saved.detail && filterData.allCategories.includes(saved.detail)) {
     detailSelect.value = saved.detail;
@@ -401,11 +466,6 @@ FILTER_SCRIPT = """
 
   clubSelect.addEventListener("change", () => {
     updateOnlyClubState();
-    applyFilters();
-  });
-  mainSelect.addEventListener("change", () => {
-    detailSelect.value = "";
-    populateDetailOptions();
     applyFilters();
   });
   detailSelect.addEventListener("change", applyFilters);
@@ -420,6 +480,64 @@ FILTER_SCRIPT = """
   }
 })();
 """
+
+
+def build_discipline_swatches_html(disciplines: List[str]) -> str:
+    """Klikatelne swatche disciplín (multiselect filtr)."""
+    return "".join(
+        (
+            f'<button type="button" class="swatch swatch-discipline" '
+            f'data-discipline="{escape_html(disc)}" '
+            f'aria-pressed="false" '
+            f'title="Filtrovat disciplinu (multiselect)" '
+            f'style="background:{escape_html(discipline_color(disc)["bg"])};'
+            f'border-left-color:{escape_html(discipline_color(disc)["accent"])};'
+            f'color:{escape_html(discipline_color(disc)["accent"])}">'
+            f"{escape_html(disc)}</button>"
+        )
+        for disc in disciplines
+    )
+
+
+def build_color_key_html(disciplines: List[str]) -> str:
+    """Filtr disciplín jako barevne swatche pod klub/detail filtry."""
+    return (
+        f'<section class="color-key" aria-label="Filtr disciplín">'
+        f'<div class="color-key-block">'
+        f'<p class="legend-subtitle">Disciplíny '
+        f'<span class="legend-hint">(klik = filtr, více najednou)</span></p>'
+        f'<div class="legend-swatches">{build_discipline_swatches_html(disciplines)}</div>'
+        f"</div>"
+        f"</section>"
+    )
+
+
+def build_discipline_color_css(disciplines: List[str]) -> str:
+    """CSS pravidla pro barevne odliseni disciplín."""
+    parts: list[str] = []
+    for disc in disciplines:
+        colors = discipline_color(disc)
+        accent = colors["accent"]
+        bg = colors["bg"]
+        parts.append(
+            f'.discipline[data-discipline="{disc}"] {{'
+            f" border-left: 6px solid {accent};"
+            f" background: linear-gradient(90deg, {bg} 0%, #ffffff 48px);"
+            f" }}"
+            f'.discipline[data-discipline="{disc}"] > h2 {{'
+            f" color: {accent};"
+            f" }}"
+            f'.discipline[data-discipline="{disc}"] > h2::before {{'
+            f' content: "";'
+            f" display: inline-block;"
+            f" width: 10px; height: 10px; border-radius: 2px;"
+            f" background: {accent}; margin-right: 8px; vertical-align: middle;"
+            f" }}"
+            f'.swatch-discipline[data-discipline="{disc}"].is-active {{'
+            f" box-shadow: 0 0 0 2px {accent};"
+            f" }}"
+        )
+    return "".join(parts)
 
 
 def build_legend_html(qualifying_places: int) -> str:
@@ -525,16 +643,22 @@ def generate_html(
         "KATA BEGINNER",
         "KUMITE BEGINNER",
     ]
+    present_disciplines = [d for d in discipline_order if d in categories_by_discipline]
     filter_data = {
         "clubs": all_clubs,
-        "disciplines": [d for d in discipline_order if d in categories_by_discipline],
+        "disciplines": present_disciplines,
+        "disciplineColors": {
+            d: discipline_color(d) for d in present_disciplines
+        },
         "categoriesByDiscipline": {
-            d: categories_by_discipline[d] for d in discipline_order if d in categories_by_discipline
+            d: categories_by_discipline[d] for d in present_disciplines
         },
         "allCategories": sorted_categories,
     }
     filter_json = json.dumps(filter_data, ensure_ascii=False).replace("<", "\\u003c")
     legend_html = build_legend_html(QUALIFYING_PLACES)
+    color_key_html = build_color_key_html(present_disciplines)
+    discipline_color_css = build_discipline_color_css(present_disciplines)
 
     disciplines: dict[str, list[str]] = defaultdict(list)
     for category_name in sorted_categories:
@@ -653,6 +777,7 @@ def generate_html(
     }}
     a.col-legend-link:hover {{ text-decoration: underline; }}
     .discipline {{ background: white; border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }}
+    {discipline_color_css}
     .category {{ margin-top: 16px; }}
     .category-note {{ margin: 4px 0 12px; padding: 8px 12px; background: #fff8e1; border-left: 4px solid #f9a825; font-size: 14px; }}
     table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
@@ -685,6 +810,14 @@ def generate_html(
     tr.club-highlight {{ background: #e8f5e9; }}
     tr.club-highlight td {{ border-bottom-color: #c8e6c9; }}
     tr.club-highlight td:nth-child(3) {{ font-weight: 600; color: #2e7d32; }}
+    .color-key {{
+      background: white; border-radius: 12px; padding: 14px 20px;
+      margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      display: flex; flex-wrap: wrap; gap: 24px;
+    }}
+    .color-key-block {{ min-width: 200px; }}
+    .color-key .legend-subtitle {{ margin: 0 0 8px; }}
+    .color-key .legend-swatches {{ margin-bottom: 0; }}
     .legend {{
       background: white; border-radius: 12px; padding: 20px 24px;
       margin-top: 32px; margin-bottom: 24px;
@@ -693,6 +826,19 @@ def generate_html(
     }}
     .legend h2 {{ margin: 0 0 8px; font-size: 20px; color: #3949ab; }}
     .legend-intro {{ margin: 0 0 16px; font-size: 14px; color: #555; }}
+    .legend-subtitle {{ margin: 14px 0 8px; font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; }}
+    .legend-swatches {{ display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }}
+    .legend-hint {{ font-weight: 500; text-transform: none; color: #888; font-size: 12px; }}
+    .swatch {{
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-radius: 8px; border: 1px solid transparent;
+      border-left: 4px solid transparent; font-weight: 600;
+      font-size: 13px; font-family: inherit; cursor: pointer;
+    }}
+    .swatch-discipline {{ font-weight: 700; }}
+    .swatch-discipline:hover {{ filter: brightness(0.97); }}
+    .swatch-discipline.is-muted {{ opacity: 0.45; }}
+    .swatch-discipline.is-active {{ opacity: 1; }}
     .legend dl {{ margin: 0; display: grid; gap: 12px; }}
     .legend dt {{ font-weight: 600; font-size: 14px; color: #222; }}
     .legend dd {{ margin: 4px 0 0; font-size: 14px; color: #444; line-height: 1.45; }}
@@ -727,11 +873,7 @@ def generate_html(
           <select id="filter-club"><option value="">Vše</option></select>
         </div>
         <div class="filter-field">
-          <label for="filter-main">Hlavní</label>
-          <select id="filter-main"><option value="">Vše</option></select>
-        </div>
-        <div class="filter-field">
-          <label for="filter-detail">Detail</label>
+          <label for="filter-detail">Kategorie</label>
           <select id="filter-detail"><option value="">Vše</option></select>
         </div>
         <button type="button" id="filter-reset">Zrušit filtry</button>
@@ -752,6 +894,7 @@ def generate_html(
       </div>
       <p class="filter-status" id="filter-status"></p>
     </section>
+    {color_key_html}
     {''.join(discipline_html)}
     {legend_html}
     </div>
