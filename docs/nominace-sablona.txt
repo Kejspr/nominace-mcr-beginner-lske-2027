@@ -1,0 +1,30 @@
+# Nominace – postup na MČR Beginner LSKe 2026/2027
+# Klub: (doplňte název klubu)
+#
+# Vyplňte seznamy níže a pošlete zpět e-mailem.
+# Jeden řádek = jeden závodník v jedné kategorii.
+# Formát: Jméno Příjmení - KATEGORIE
+#
+# Tip: na webu u řádku klikněte na Txt – zkopíruje se správný formát.
+# Web: https://kejspr.github.io/nominace-mcr-beginner-lske-2027/
+#
+# =====================================================================
+# A) POTVRZENÍ / ZÁJEM
+#    Závodníci, kteří jedou (nebo mají zájem o postup).
+# =====================================================================
+
+# příklad (smažte a nahraďte svými):
+# Adam Novák - KIHON IDO chlapci U10 (≤ 8.kyu)
+# Eva Malá - KATA BEGINNER dívky U12 (7.Kyu)
+
+
+# =====================================================================
+# B) UVOLNĚNÍ SLOTU
+#    Hlavně závodníci na postupové pozici, kteří nepojedou
+#    (uvolní místo dalšímu v pořadí) – např. mají jinou kategorii,
+#    nebo se turnaje nezúčastní.
+# =====================================================================
+
+# příklad (smažte a nahraďte svými):
+# Marek Horák - KUMITE BALLOON chlapci U10 (≤ 8.kyu)
+

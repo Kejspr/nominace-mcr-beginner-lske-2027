@@ -274,16 +274,35 @@ def nominations_template(club: str, declined: bool = False) -> str:
     )
 
 
+def has_nomination_lines(path: Path) -> bool:
+    """True pokud soubor obsahuje aspon jeden radek mimo komentare a prazdne radky."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return True
+    return any(line.strip() and not line.strip().startswith("#") for line in lines)
+
+
 def ensure_nomination_files(aggregated_path: Path) -> List[Path]:
     if not aggregated_path.is_file():
         return []
 
     root = ET.parse(aggregated_path).getroot()
     clubs = collect_clubs_from_xml(root)
+    keep_names = {club_nomination_filename(club) for club in clubs}
     created: List[Path] = []
 
     for directory, declined in ((NOMINATIONS_DIR, False), (NOMINATIONS_DECLINED_DIR, True)):
         directory.mkdir(parents=True, exist_ok=True)
+        for path in directory.glob("*.txt"):
+            if path.name in keep_names:
+                continue
+            # klub uz ve vysledcich neni: prazdnou sablonu smazat, vyplnene nominace nikdy
+            if has_nomination_lines(path):
+                print(f"Pozor: {path.parent.name}/{path.name} - klub neni ve vysledcich, "
+                      "ale soubor obsahuje nominace (ponechano, zkontroluj nazev klubu)")
+            else:
+                path.unlink()
         for club in clubs:
             target = directory / club_nomination_filename(club)
             if not target.exists():

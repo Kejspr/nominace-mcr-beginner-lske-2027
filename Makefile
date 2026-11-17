@@ -3,7 +3,11 @@ SRC = src
 
 DOCS = docs
 FINAL_PDF = output/pdf/final-postupujici.pdf
-CHROME ?= /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+# Chrome/Chromium pro tisk PDF - Mac i GitHub Actions (ubuntu ma google-chrome)
+CHROME ?= $(shell for c in "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+	"$$(command -v google-chrome 2>/dev/null)" "$$(command -v google-chrome-stable 2>/dev/null)" \
+	"$$(command -v chromium 2>/dev/null)" "$$(command -v chromium-browser 2>/dev/null)"; do \
+	if [ -n "$$c" ] && [ -x "$$c" ]; then echo "$$c"; break; fi; done)
 PAGES_URL = https://kejspr.github.io/nominace-mcr-beginner-lske-2027/
 PUBLISH_MSG ?= Aktualizace vysledku
 
@@ -68,10 +72,10 @@ final-export: excel
 # PDF finalniho seznamu - tisk final-postupujici.html pres Chrome bez okna
 pdf: final-export
 	@if [ ! -x "$(CHROME)" ]; then \
-		echo "Chrome nenalezen ($(CHROME)) - PDF vytiskni rucne z final-postupujici.html"; \
+		echo "Chrome nenalezen - PDF vytiskni rucne z final-postupujici.html (nebo make pdf CHROME=/cesta/k/chrome)"; \
 	else \
 		mkdir -p $(dir $(FINAL_PDF)); \
-		"$(CHROME)" --headless=new --disable-gpu --no-pdf-header-footer \
+		"$(CHROME)" --headless=new --disable-gpu --no-sandbox --no-pdf-header-footer \
 			--print-to-pdf="$(CURDIR)/$(FINAL_PDF)" "file://$(CURDIR)/final-postupujici.html" >/dev/null 2>&1; \
 		cp $(FINAL_PDF) final-postupujici.pdf; \
 		echo "PDF: $(FINAL_PDF) (+ kopie final-postupujici.pdf)"; \
