@@ -1,0 +1,25 @@
+# Rucni upravy FINALNIHO SEZNAMU POSTUPUJICICH
+# Plati pro final-postupujici.* (PDF) i zalozku "Finalni postupujici" na webu,
+# kde se pod seznamem zobrazi i s duvodem (komentar) a datem.
+#
+# Format - jeden radek = jedna uprava, pole oddelena znakem |
+#   PRESUN  | Jmeno Prijmeni | PUVODNI KATEGORIE | NOVA KATEGORIE
+#   PRIDAT  | Jmeno Prijmeni | KATEGORIE | Klub
+#   ODEBRAT | Jmeno Prijmeni | KATEGORIE
+#   PRESTUP | Jmeno Prijmeni | PUVODNI KLUB | NOVY KLUB
+#
+# PRESUN / PRIDAT / ODEBRAT meni JEN finalni seznam (vysledky ani nominace ne).
+# PRESTUP se pouzije UZ PRI SLUCOVANI VYSLEDKU - zmeni klub ve vysledcich na webu,
+#   v nominacich (potvrzeni se hledaji pod novym klubem) i ve finalnim seznamu.
+#   Jen pro prestup, ktery ve vysledcich neni (napr. az po vsech kolech);
+#   prestup behem sezony se bere automaticky z posledniho kola.
+#   Puvodni klub musi sedet s vysledky, jinak generovani skonci chybou.
+#
+# Kategorie a kluby piste presne jako v results-for-excel.csv.
+# Text za # je komentar = duvod/zdroj, na konci datum (dd.mm.rrrr) - zobrazi se na webu.
+
+# Priklady (odkomentuj a uprav):
+# PRESTUP | Jan Novak | PUVODNI KLUB z.s. | NOVY KLUB z.s.   # Prestup po skonceni vsech kol, 1.11.2027
+# PRESUN  | Jana Novakova | KUMITE divky U12 -30 kg | KUMITE divky U12 -35 kg   # Zadost klubu (e-mail), 1.11.2027
+# PRIDAT  | Petr Svoboda | KUMITE juniori -61 kg | NAZEV KLUBU z.s.   # Nominace navic, 1.11.2027
+# ODEBRAT | Eva Dvorakova | KATA divky U14   # Odhlaseni, 1.11.2027

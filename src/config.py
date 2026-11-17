@@ -37,7 +37,9 @@ FINAL_EXPORT_CSV = BASE_DIR / "final-postupujici.csv"
 FINAL_EXPORT_TSV = BASE_DIR / "final-postupujici.tsv"
 FINAL_EXPORT_TXT = BASE_DIR / "final-postupujici.txt"
 FINAL_EXPORT_HTML = BASE_DIR / "final-postupujici.html"
-FINAL_EXPORT_TITLE = "Konecny seznam postupujicich - MCR Beginner LSKe 2026/2027"
+# Rucni upravy finalniho seznamu (mimo vysledky) - viz generate_final_export.py
+MANUAL_EDITS_FILE = BASE_DIR / "rucni-upravy.txt"
+FINAL_EXPORT_TITLE = "Konečný seznam postupujících – MČR Beginner LSKe 2026/2027"
 
 # HTML prezentace (GitHub Pages)
 PRESENTATION_HTML = BASE_DIR / "docs" / "index.html"
@@ -94,6 +96,9 @@ WORKING_FILE_TEMPLATE = "results-{round}-kolo-{slug}.xml"
 # Prazdne = slug se odvodi z nazvu turnaje v prvnim souboru
 TOURNAMENT_SLUG = ""
 
+# Prestupy po poslednim kole (mimo vysledky) se zapisuji do rucni-upravy.txt
+# jako PRESTUP | Jmeno Prijmeni | puvodni klub | novy klub  (viz manual_edits.py).
+
 # ---------------------------------------------------------------------------
 # Mapovani nazvu klubu (sjednoceni variant v XML)
 # ---------------------------------------------------------------------------
@@ -103,3 +108,13 @@ CLUB_NAME_MAP = {
     "SK Karate Shotokan Liberec": "SK KARATE - SHOTOKAN LIBEREC, z.s.",
     "Shotokan Sport Centrum Česká Lípa": "Shotokan Sport Centrum Česká Lípa z.s.",
 }
+
+# ---------------------------------------------------------------------------
+# Neplatne / placeholder kategorie z rozbiteho exportu karate-draw
+# (doslovne retezce "disciplina", "kategorie1", "kategorie2") - make fix je odstrani
+# ---------------------------------------------------------------------------
+INVALID_CATEGORY_PLACEHOLDERS = frozenset({
+    "disciplina",
+    "kategorie1",
+    "kategorie2",
+})

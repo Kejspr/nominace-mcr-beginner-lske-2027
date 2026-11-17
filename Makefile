@@ -2,16 +2,18 @@ PYTHON ?= python3
 SRC = src
 
 DOCS = docs
+FINAL_PDF = output/pdf/final-postupujici.pdf
+CHROME ?= /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
 PAGES_URL = https://kejspr.github.io/nominace-mcr-beginner-lske-2027/
 PUBLISH_MSG ?= Aktualizace vysledku
 
-.PHONY: help deploy deploy-site build pages validate fix aggregate excel verify-nominations final-export git-push publish all vse deploy-pages
+.PHONY: help deploy deploy-site build pages validate fix aggregate excel verify-nominations final-export pdf docs-downloads git-push publish all vse deploy-pages
 
 help:
 	@echo "Nominace MCR Beginner - LSKe (GitHub Pages)"
 	@echo ""
 	@echo "  make deploy         kompletni WF: validate -> fix -> aggregate -> deploy-site + push"
-	@echo "  make deploy-site    excel + HTML + verify-nominations (bez git push)"
+	@echo "  make deploy-site    excel + final-export + PDF + HTML + verify-nominations (bez git push)"
 	@echo ""
 	@echo "Jednotlive kroky:"
 	@echo "  make validate             kontrola original/"
@@ -19,6 +21,8 @@ help:
 	@echo "  make aggregate            pracovni/ -> aggregated-results.xml"
 	@echo "  make excel                CSV + Postupuje + nomination log"
 	@echo "  make final-export         konecny seznam postupujicich (CSV, TSV, TXT, HTML)"
+	@echo "  make pdf                  final-postupujici.pdf z HTML (Chrome headless)"
+	@echo "  make docs-downloads       zkopiruje PDF + TXT do docs/ (ke stazeni na webu)"
 	@echo "  make pages                HTML -> docs/index.html (vyzaduje excel)"
 	@echo "  make verify-nominations   kontrola nominations/*.txt"
 	@echo ""
@@ -34,7 +38,7 @@ deploy: validate fix aggregate deploy-site git-push
 	@echo ""
 	@echo "Deploy hotovo: $(PAGES_URL) (po dokonceni Actions)"
 
-deploy-site: excel pages verify-nominations
+deploy-site: excel final-export pdf docs-downloads pages verify-nominations
 
 build: validate fix aggregate excel
 	@echo ""
@@ -61,6 +65,25 @@ excel:
 final-export: excel
 	$(PYTHON) $(SRC)/generate_final_export.py
 
+# PDF finalniho seznamu - tisk final-postupujici.html pres Chrome bez okna
+pdf: final-export
+	@if [ ! -x "$(CHROME)" ]; then \
+		echo "Chrome nenalezen ($(CHROME)) - PDF vytiskni rucne z final-postupujici.html"; \
+	else \
+		mkdir -p $(dir $(FINAL_PDF)); \
+		"$(CHROME)" --headless=new --disable-gpu --no-pdf-header-footer \
+			--print-to-pdf="$(CURDIR)/$(FINAL_PDF)" "file://$(CURDIR)/final-postupujici.html" >/dev/null 2>&1; \
+		cp $(FINAL_PDF) final-postupujici.pdf; \
+		echo "PDF: $(FINAL_PDF) (+ kopie final-postupujici.pdf)"; \
+	fi
+
+# Oficialni finalni seznam ke stazeni na webu (GitHub Pages zverejnuje jen docs/)
+docs-downloads: pdf
+	mkdir -p $(DOCS)
+	cp final-postupujici.txt $(DOCS)/final-postupujici.txt
+	@if [ -f $(FINAL_PDF) ]; then cp $(FINAL_PDF) $(DOCS)/final-postupujici.pdf; \
+	else echo "Pozor: $(FINAL_PDF) neexistuje - PDF na webu nebude aktualni"; fi
+
 verify-nominations:
 	$(PYTHON) $(SRC)/verify_categories.py
 
@@ -68,7 +91,7 @@ git-push:
 	@if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
 		echo "Chyba: neni git repo"; exit 1; \
 	fi
-	git add docs/index.html original/ nominations/ nominations-declined/ src/ Makefile .github/
+	git add docs/ original/ nominations/ nominations-declined/ src/ Makefile .github/ $$(ls rucni-upravy.txt $(FINAL_PDF) final-postupujici.pdf 2>/dev/null)
 	@if git diff --staged --quiet; then \
 		echo "Nic k publikovani - zadne zmeny"; \
 	else \
